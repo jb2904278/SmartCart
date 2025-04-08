@@ -217,4 +217,55 @@ def login():
         user = {"uid": "dummy_user"}  
         return jsonify({"uid": user["uid"], "token": "mock_token"}), 200
     except Exception as e:
+<<<<<<< HEAD
         return jsonify({"error": "Invalid email or password"}), 401
+    
+@app.route("/profile/update", methods=["POST"])
+def update_profile():
+    userId = request.json.get("userId")
+    name = request.json.get("name")
+    avatarUrl = request.json.get("avatarUrl", "https://default-avatar.com")
+    try:
+        db.collection("users").document(userId).update({"name": name, "avatarUrl": avatarUrl})
+        return jsonify({"message": "Profile updated"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def verify_token(token):
+    try:
+        decoded = auth.verify_id_token(token)
+        return decoded["uid"]
+    except:
+        return None
+
+=======
+        return jsonify({"error": "Invalid email or password"}), 401
+>>>>>>> 8edab77372e8535378d15005f3d0ef99d002251a
+
+
+@app.route("/profile/<userId>", methods=["GET"])
+def get_profile(userId):
+    start_time = time.time()
+    token = request.headers.get("Authorization")
+    uid = verify_token(token)
+    if not uid or uid != userId:
+        return jsonify({"error": "Authentication required"}), 401
+    try:
+        profile = db.collection("users").document(userId).get().to_dict()
+        if not profile:
+            return jsonify({"error": "User not found"}), 404
+        db.collection("profile_logs").add({
+            "userId": userId,
+            "status": "success",
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "response_time": time.time() - start_time
+        })
+        return jsonify(profile), 200
+    except Exception as e:
+        db.collection("profile_logs").add({
+            "userId": userId,
+            "status": "error",
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "response_time": time.time() - start_time
+        })
+        return jsonify({"error": str(e)}), 500
