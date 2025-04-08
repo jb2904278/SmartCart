@@ -235,3 +235,31 @@ def verify_token(token):
 =======
         return jsonify({"error": "Invalid email or password"}), 401
 >>>>>>> 8edab77372e8535378d15005f3d0ef99d002251a
+
+
+@app.route("/profile/<userId>", methods=["GET"])
+def get_profile(userId):
+    start_time = time.time()
+    token = request.headers.get("Authorization")
+    uid = verify_token(token)
+    if not uid or uid != userId:
+        return jsonify({"error": "Authentication required"}), 401
+    try:
+        profile = db.collection("users").document(userId).get().to_dict()
+        if not profile:
+            return jsonify({"error": "User not found"}), 404
+        db.collection("profile_logs").add({
+            "userId": userId,
+            "status": "success",
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "response_time": time.time() - start_time
+        })
+        return jsonify(profile), 200
+    except Exception as e:
+        db.collection("profile_logs").add({
+            "userId": userId,
+            "status": "error",
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "response_time": time.time() - start_time
+        })
+        return jsonify({"error": str(e)}), 500
