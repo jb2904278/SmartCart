@@ -103,6 +103,94 @@ def get_grocery_items():
             return jsonify(cached), 200
         return jsonify({"error": str(e)}), 500
 
+@app.route("/daily-offers", methods=["GET"])
+def get_daily_offers():
+    start_time = time.time()
+    try:
+        # Simulate offers with Open Food Facts data, since Flipp API key is unavailable
+        url = "https://world.openfoodfacts.org/cgi/search.pl"
+        params = {
+            "action": "process",
+            "tagtype_0": "categories",
+            "tag_contains_0": "contains",
+            "tag_0": "snacks",  # Example category; we will change down the road
+            "json": 1,
+            "page_size": 5,  # Limit to 5 offers
+            "fields": "product_name"
+        }
+        headers = {"User-Agent": "GroceryElegance - Python - Version 1.0"}
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # Parse response and create mock offers
+        data = response.json()
+        offers = []
+        for product in data.get("products", [])[:5]:
+            name = product.get("product_name", "Unknown Product")
+            if not name:
+                continue
+            offers.append({
+                "name": name,
+                "original": 1.00,  # Dummy original price (Need to chage in future)
+                "sale": 0.75     # Dummy sale price (25% off)
+            })
+        
+        if not offers:
+            raise Exception("No valid offer items found in API response")
+        
+        # Log success and cache in Firebase
+        db.collection("offers_cache").document("latest").set({"offers": offers, "timestamp": firestore.SERVER_TIMESTAMP})
+        db.collection("api_logs").add({"endpoint": "daily-offers", "status": "success", "time": time.time() - start_time})
+        return jsonify({"offers": offers}), 200
+    except Exception as e:
+        db.collection("api_logs").add({"endpoint": "daily-offers", "status": "error", "time": time.time() - start_time, "error": str(e)})
+        # Fallback to cached data
+        cached = db.collection("offers_cache").document("latest").get().to_dict()
+        if cached and "offers" in cached:
+            return jsonify(cached), 200
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/meal-recommendations", methods=["POST"])
+def get_meal_recommendations():
+    start_time = time.time()
+    cart_items = request.json.get("cart_items", [])
+    try:
+        if not cart_items:
+            meals = []
+        elif not SPOONACULAR_API_KEY:
+            # Fallback to dummy data if API key is missing
+            meals = [
+                {"meal": f"{cart_items[0]} Stew", "ingredients": cart_items},
+                {"meal": f"{cart_items[0]} Salad", "ingredients": cart_items[:2]},
+                {"meal": f"{cart_items[0]} Stir-Fry", "ingredients": cart_items}
+            ]
+        else:
+            # Real Spoonacular API call
+            ingredients = ",".join(cart_items)
+            url = f"https://api.spoonacular.com/recipes/findByIngredients?ingredients={ingredients}&number=3&apiKey={SPOONACULAR_API_KEY}"
+            response = requests.get(url)
+            response.raise_for_status()  # Raise exception for bad status codes
+            recipes = response.json()
+            meals = [
+                {
+                    "meal": recipe["title"],
+                    "ingredients": [ing["name"] for ing in recipe["usedIngredients"] + recipe["missedIngredients"]]
+                }
+                for recipe in recipes
+            ]
+
+        if db:
+            # Use set with merge=True to create or update the document
+            db.collection("users").document("dummy_user").set({"recommendations": meals}, merge=True)
+            db.collection("api_logs").add({"endpoint": "meal-recommendations", "status": "success", "time": time.time() - start_time})
+        return jsonify({"meals": meals[:3]}), 200
+    except Exception as e:
+        if db:
+            db.collection("api_logs").add({"endpoint": "meal-recommendations", "status": "error", "time": time.time() - start_time})
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/auth/signup", methods=["POST"])
 def signup():
     email = request.json.get("email")
