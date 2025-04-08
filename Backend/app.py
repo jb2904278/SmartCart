@@ -217,9 +217,10 @@ def login():
         user = {"uid": "dummy_user"}  
         return jsonify({"uid": user["uid"], "token": "mock_token"}), 200
     except Exception as e:
-<<<<<<< HEAD
         return jsonify({"error": "Invalid email or password"}), 401
     
+
+
 @app.route("/profile/update", methods=["POST"])
 def update_profile():
     userId = request.json.get("userId")
@@ -238,9 +239,6 @@ def verify_token(token):
     except:
         return None
 
-=======
-        return jsonify({"error": "Invalid email or password"}), 401
->>>>>>> 8edab77372e8535378d15005f3d0ef99d002251a
 
 
 @app.route("/profile/<userId>", methods=["GET"])
@@ -269,3 +267,8 @@ def get_profile(userId):
             "response_time": time.time() - start_time
         })
         return jsonify({"error": str(e)}), 500
+    
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
