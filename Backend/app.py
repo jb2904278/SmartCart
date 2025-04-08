@@ -191,6 +191,12 @@ def get_meal_recommendations():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api-logs", methods=["GET"])
+def get_api_logs():
+    logs = db.collection("api_logs").order_by("time", direction=firestore.Query.DESCENDING).limit(10).get()
+    return jsonify([log.to_dict() for log in logs]), 200
+
+
 @app.route("/auth/signup", methods=["POST"])
 def signup():
     email = request.json.get("email")
