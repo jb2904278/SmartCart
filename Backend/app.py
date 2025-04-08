@@ -269,6 +269,11 @@ def get_profile(userId):
         return jsonify({"error": str(e)}), 500
     
 
+@app.route("/profile-logs", methods=["GET"])
+def get_profile_logs():
+    logs = db.collection("profile_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).get()
+    return jsonify([log.to_dict() for log in logs]), 200
+
 
 if __name__ == "__main__":
     app.run(debug=True)
