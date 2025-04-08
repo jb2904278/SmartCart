@@ -58,12 +58,49 @@ def test_apis():
 def get_grocery_items():
     start_time = time.time()
     try:
-        # Using dummy data for now (replace with Open Food Facts API call later)
-        items = DUMMY_GROCERY_ITEMS[:10]
+        # Fetch real data from Open Food Facts API
+        url = "https://world.openfoodfacts.org/cgi/search.pl"
+        params = {
+            "action": "process",
+            "tagtype_0": "categories",
+            "tag_contains_0": "contains",
+            "tag_0": "groceries",  # Broad category; adjust as needed (e.g., "snacks", "beverages")
+            "json": 1,
+            "page_size": 10,  # Limit to 10 items
+            "fields": "product_name,generic_name,categories_tags,nutriscore_grade"  # Relevant fields
+        }
+        headers = {"User-Agent": "GroceryElegance - Python - Version 1.0"}  # Required by Open Food Facts
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # Parse Open Food Facts response
+        data = response.json()
+        items = []
+        for product in data.get("products", [])[:10]:  # Ensure we get up to 10 items
+            name = product.get("product_name", "Unknown Product")
+            if not name:  # Skip if no name
+                continue
+            item = {
+                "name": name,
+                "category": product.get("generic_name", "Miscellaneous"),
+                "tags": product.get("categories_tags", []),
+                "price": 1.00  # Dummy price; Open Food Facts doesn’t provide this
+            }
+            items.append(item)
+        
+        if not items:
+            raise Exception("No valid grocery items found in API response")
+        
+        # Log success and cache in Firebase
         db.collection("api_logs").add({"endpoint": "grocery-items", "status": "success", "time": time.time() - start_time})
+        db.collection("grocery_cache").document("latest").set({"items": items, "timestamp": firestore.SERVER_TIMESTAMP})
         return jsonify({"items": items}), 200
     except Exception as e:
-        db.collection("api_logs").add({"endpoint": "grocery-items", "status": "error", "time": time.time() - start_time})
+        db.collection("api_logs").add({"endpoint": "grocery-items", "status": "error", "time": time.time() - start_time, "error": str(e)})
+        # Fallback to cached data if available
+        cached = db.collection("grocery_cache").document("latest").get().to_dict()
+        if cached and "items" in cached:
+            return jsonify(cached), 200
         return jsonify({"error": str(e)}), 500
 
 @app.route("/auth/signup", methods=["POST"])
