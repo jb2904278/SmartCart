@@ -74,3 +74,22 @@ def login():
         return jsonify({"uid": user["uid"], "token": "mock_token"}), 200
     except Exception as e:
         return jsonify({"error": "Invalid email or password"}), 401
+    
+@app.route("/profile/update", methods=["POST"])
+def update_profile():
+    userId = request.json.get("userId")
+    name = request.json.get("name")
+    avatarUrl = request.json.get("avatarUrl", "https://default-avatar.com")
+    try:
+        db.collection("users").document(userId).update({"name": name, "avatarUrl": avatarUrl})
+        return jsonify({"message": "Profile updated"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def verify_token(token):
+    try:
+        decoded = auth.verify_id_token(token)
+        return decoded["uid"]
+    except:
+        return None
+
