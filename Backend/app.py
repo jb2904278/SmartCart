@@ -52,6 +52,19 @@ def test_apis():
         return jsonify({"status": "success", "message": "APIs tested"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+
+@app.route("/grocery-items", methods=["GET"])
+def get_grocery_items():
+    start_time = time.time()
+    try:
+        # Using dummy data for now (replace with Open Food Facts API call later)
+        items = DUMMY_GROCERY_ITEMS[:10]
+        db.collection("api_logs").add({"endpoint": "grocery-items", "status": "success", "time": time.time() - start_time})
+        return jsonify({"items": items}), 200
+    except Exception as e:
+        db.collection("api_logs").add({"endpoint": "grocery-items", "status": "error", "time": time.time() - start_time})
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/auth/signup", methods=["POST"])
 def signup():
