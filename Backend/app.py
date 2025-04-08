@@ -64,3 +64,13 @@ def signup():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
+@app.route("/auth/login", methods=["POST"])
+def login():
+    email = request.json.get("email")
+    password = request.json.get("password")
+    try:
+        
+        user = {"uid": "dummy_user"}  
+        return jsonify({"uid": user["uid"], "token": "mock_token"}), 200
+    except Exception as e:
+        return jsonify({"error": "Invalid email or password"}), 401
