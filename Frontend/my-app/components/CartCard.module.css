@@ -1,0 +1,39 @@
+.card {
+    background-color: #F5F1E9;
+    padding: 1.5rem;
+    margin: 2rem auto;
+    max-width: 500px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  .title {
+    font-size: 1.5rem;
+    color: #2E2E2E;
+    margin-bottom: 1rem;
+  }
+  
+  .item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #D4A017;
+    color: #2E2E2E;
+  }
+  
+  .empty {
+    color: #2E2E2E;
+    font-style: italic;
+  }
+  
+  .summary {
+    margin-top: 1rem;
+    font-weight: 600;
+    color: #D4A017;
+  }
+  
+  .loginPrompt {
+    text-align: center;
+    color: #2E2E2E;
+    font-family: 'Poppins', sans-serif;
+    margin: 2rem;
+  }
