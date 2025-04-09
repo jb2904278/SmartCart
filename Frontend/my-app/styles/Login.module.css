@@ -1,0 +1,89 @@
+.container {
+    background-color: #F5F1E9;
+    padding: 2rem;
+    margin: 0 auto;
+    max-width: 400px;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+  }
+  
+  .modal {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background-color: #F5F1E9;
+    animation: fadeIn 0.3s ease-in;
+  }
+  
+  .title {
+    font-size: 2rem;
+    color: #2E2E2E;
+    margin-bottom: 1.5rem;
+  }
+  
+  .input {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    border: 1px solid #D4A017;
+    border-radius: 25px;
+    font-size: 1rem;
+    color: #2E2E2E;
+    background-color: #fff;
+  }
+  
+  .button {
+    padding: 0.75rem 2rem;
+    background-color: #D4A017;
+    color: #2E2E2E;
+    border: none;
+    border-radius: 25px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  
+  .button:hover {
+    background-color: #2E2E2E;
+    color: #F5F1E9;
+    transform: translateY(-2px);
+  }
+  
+  .error {
+    color: #D32F2F;
+    margin: 1rem 0;
+  }
+  
+  .linkText {
+    color: #2E2E2E;
+    margin-top: 1rem;
+  }
+  
+  .link {
+    color: #D4A017;
+    text-decoration: none;
+  }
+  
+  .link:hover {
+    text-decoration: underline;
+  }
+  
+  .closeButton {
+    margin-top: 1rem;
+    background-color: #2E2E2E;
+    color: #F5F1E9;
+  }
+  
+  .closeButton:hover {
+    background-color: #D4A017;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
