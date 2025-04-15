@@ -1,39 +1,66 @@
 .card {
-    background-color: #F5F1E9;
-    padding: 1.5rem;
-    margin: 2rem auto;
-    max-width: 500px;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    font-family: 'Poppins', sans-serif;
-  }
-  
-  .title {
-    font-size: 1.5rem;
-    color: #2E2E2E;
-    margin-bottom: 1rem;
-  }
-  
-  .item {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #D4A017;
-    color: #2E2E2E;
-  }
-  
-  .empty {
-    color: #2E2E2E;
-    font-style: italic;
-  }
-  
-  .summary {
-    margin-top: 1rem;
-    font-weight: 600;
-    color: #D4A017;
-  }
-  
-  .loginPrompt {
-    text-align: center;
-    color: #2E2E2E;
-    font-family: 'Poppins', sans-serif;
-    margin: 2rem;
-  }
+  background-color: #F5F1E9;
+  padding: 1.5rem;
+  margin: 2rem auto;
+  max-width: 500px;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  font-family: 'Poppins', sans-serif;
+}
+
+.title {
+  font-size: 1.5rem;
+  color: #2E2E2E;
+  margin-bottom: 1rem;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #D4A017;
+  color: #2E2E2E;
+}
+
+.removeButton {
+  padding: 0.3rem 0.8rem;
+  background-color: #D4A017;
+  color: #2E2E2E;
+  border: none;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.removeButton:hover {
+  background-color: #2E2E2E;
+  color: #F5F1E9;
+}
+
+.empty {
+  color: #2E2E2E;
+  font-style: italic;
+  text-align: center;
+}
+
+.summary {
+  margin-top: 1rem;
+  font-weight: 600;
+  color: #D4A017;
+  text-align: right;
+}
+
+.mealRecommendations {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #D4A017;
+}
+
+.loginPrompt {
+  text-align: center;
+  color: #2E2E2E;
+  font-family: 'Poppins', sans-serif;
+  margin: 2rem;
+}

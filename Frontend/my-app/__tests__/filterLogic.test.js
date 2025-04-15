@@ -1,5 +1,5 @@
 
-import { filterProducts } from "../utils/filterLogic";
+import { filterProducts } from "../utils/filterLogic"; 
 
 const products = [
   { name: "Tomato", tags: ["vegan", "gluten-free"] },
