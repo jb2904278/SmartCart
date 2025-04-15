@@ -1,25 +1,28 @@
+
 .container {
-  background-color: #F5F1E9;
   min-height: 100vh;
   font-family: 'Poppins', sans-serif;
 }
 
 .hero {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 50px 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e6efff 100%);
 }
 
 .title {
-  font-size: 3rem;
-  color: #2E2E2E;
-  margin-bottom: 1rem;
+  font-size: 36px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
 }
 
 .subtitle {
-  font-size: 1.25rem;
-  color: #2E2E2E;
-  margin-bottom: 2rem;
+  font-size: 18px;
+  color: #555;
+  margin-bottom: 30px;
 }
+
 
 .button {
   padding: 1rem 2.5rem;
@@ -33,7 +36,5 @@
 }
 
 .button:hover {
-  background-color: #2E2E2E;
-  color: #F5F1E9;
-  transform: translateY(-3px);
+  background-color: #b8860b;
 }
