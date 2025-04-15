@@ -1,46 +1,46 @@
 .summary {
-    background: linear-gradient(145deg, #ffffff, #f8f9fa); /* Subtle gradient for a modern look */
+    background: linear-gradient(145deg, #ffffff, #f8f9fa); 
     border-radius: 12px;
     padding: 20px;
     margin: 15px auto;
     max-width: 450px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer, deeper shadow for depth */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); 
     font-family: 'Poppins', sans-serif;
     text-align: center;
-    border: 1px solid rgba(212, 160, 23, 0.2); /* Subtle gold accent border */
+    border: 1px solid rgba(212, 160, 23, 0.2); 
     transition: transform 0.2s ease, box-shadow 0.3s ease;
   }
   
   .summary:hover {
-    transform: translateY(-3px); /* Slight lift on hover for interactivity */
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); /* Enhanced shadow on hover */
+    transform: translateY(-3px); 
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   }
   
   .title {
     font-size: 20px;
-    color: #2E2E2E; /* Match the dark color from the button */
+    color: #2E2E2E; 
     margin: 0 0 15px;
-    font-weight: 600; /* Slightly bolder for a classy look */
-    letter-spacing: 0.5px; /* Subtle spacing for refinement */
+    font-weight: 600; 
+    letter-spacing: 0.5px; 
   }
   
   .prefs {
     font-size: 16px;
-    color: #555; /* Softer gray for secondary text */
+    color: #555;
     margin: 0 0 15px;
     line-height: 1.5;
     font-weight: 400;
   }
   
   .prefs span {
-    color: #D4A017; /* Highlight active preferences in gold */
+    color: #D4A017; 
     font-weight: 500;
   }
   
   .suggestion {
     font-size: 16px;
     color: #2E2E2E;
-    background: rgba(212, 160, 23, 0.1); /* Light gold background for the suggestion */
+    background: rgba(212, 160, 23, 0.1); 
     padding: 10px 15px;
     border-radius: 8px;
     margin: 10px 0 0;
@@ -49,7 +49,7 @@
   }
   
   .suggestion:hover {
-    background: #D4A017; /* Gold background on hover */
-    color: #ffffff; /* White text on hover for contrast */
-    cursor: pointer; /* Indicate interactivity */
+    background: #D4A017; 
+    color: #ffffff; 
+    cursor: pointer;
   }

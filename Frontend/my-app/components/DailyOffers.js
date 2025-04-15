@@ -5,7 +5,6 @@ export default function DailyOffers({ showNotification }) {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Retry fetch with backoff and timeout
   const fetchWithRetry = async (url, retries = 7, initialDelay = 1000, timeout = 10000) => {
     let delay = initialDelay;
     for (let i = 0; i < retries; i++) {

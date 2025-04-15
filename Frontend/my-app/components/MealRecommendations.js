@@ -3,14 +3,14 @@ import { useAuth } from "../context/AuthContext";
 import styles from "./MealRecommendations.module.css";
 
 export default function MealRecommendations() {
-  const { user, cart, dietaryPrefs } = useAuth(); // Changed cartItems to cart
+  const { user, cart, dietaryPrefs } = useAuth(); 
   const [meals, setMeals] = useState([]);
   const [filteredMeals, setFilteredMeals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastRequestTime, setLastRequestTime] = useState(0);
 
-  // Debounce delay to prevent rapid requests (e.g., 1 second between requests)
+ 
   const DEBOUNCE_DELAY = 1000;
 
   const filterMealsByDietaryPrefs = (meals) => {
@@ -28,7 +28,7 @@ export default function MealRecommendations() {
 
     return meals.filter((meal) => {
       return Object.entries(dietaryFilters).every(([key, value]) => {
-        if (!value) return true; // If the filter is not active, skip it
+        if (!value) return true; 
         const tagKey = key.toLowerCase().replace("glutenfree", "gluten-free");
         return meal.tags.includes(tagKey);
       });
@@ -63,7 +63,7 @@ export default function MealRecommendations() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          cart_items: cart.map((item) => item.name), // Use cart instead of cartItems
+          cart_items: cart.map((item) => item.name), 
           dietary_prefs: dietaryPrefs,
         }),
       });
@@ -82,7 +82,7 @@ export default function MealRecommendations() {
       const fetchedMeals = data.meals || [];
       setMeals(fetchedMeals);
 
-      // Filter meals based on dietary preferences
+     
       const filtered = filterMealsByDietaryPrefs(fetchedMeals);
       setFilteredMeals(filtered);
     } catch (err) {
@@ -92,19 +92,19 @@ export default function MealRecommendations() {
     } finally {
       setLoading(false);
     }
-  }, [user, cart, dietaryPrefs, lastRequestTime]); // Update dependency to cart
+  }, [user, cart, dietaryPrefs, lastRequestTime]); 
 
   useEffect(() => {
-    // Since cart is guaranteed to be an array, we can simplify the check
+
     if (cart.length > 0) {
       fetchMeals();
     } else {
       setMeals([]);
       setFilteredMeals([]);
     }
-  }, [cart, fetchMeals]); // Update dependency to cart
+  }, [cart, fetchMeals]); 
 
-  // Re-filter meals whenever dietaryPrefs change
+  
   useEffect(() => {
     const filtered = filterMealsByDietaryPrefs(meals);
     setFilteredMeals(filtered);
