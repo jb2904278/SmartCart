@@ -5,6 +5,10 @@ import requests
 import time
 from dotenv import load_dotenv 
 import os
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -32,6 +36,29 @@ DUMMY_GROCERY_ITEMS = [
     {"name": "Chicken", "category": "meat", "tags": []},
     {"name": "Pasta", "category": "grain", "tags": ["gluten-free"]}
 ]
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["100 per hour"],
+    storage_uri="memory://"
+)
+
+def firebase_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Missing or invalid token"}), 401
+        token = auth_header.split("Bearer ")[1]
+        try:
+            decoded_token = auth.verify_id_token(token)
+            g.user = decoded_token
+        except Exception as e:
+            return jsonify({"error": f"Invalid token: {str(e)}"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
  
 @app.route("/test-apis", methods=["GET"])
 def test_apis():
@@ -198,82 +225,285 @@ def get_api_logs():
 
 
 @app.route("/auth/signup", methods=["POST"])
+@firebase_auth
 def signup():
-    email = request.json.get("email")
-    password = request.json.get("password")
+    data = request.get_json()
+    email = data.get("email")
+    name = data.get("name")
+    user_id = g.user["uid"]
+    avatar_url = f"https://api.dicebear.com/9.x/pixel-art/svg?seed={user_id}"
     try:
-        user = auth.create_user(email=email, password=password)
-        db.collection("users").document(user.uid).set({"name": "New User", "avatarUrl": "https://default-avatar.com"})
-        return jsonify({"uid": user.uid}), 201
+        db.collection("profiles").document(user_id).set({
+            "email": email,
+            "name": name,
+            "avatarUrl": avatar_url,
+            "dietaryPrefs": {
+                "vegan": False,
+                "glutenFree": False,
+                "nutFree": False,
+                "organic": False,
+                "nonGMO": False,
+                "lowCarb": False,
+                "highFiber": False,
+                "lowSodium": False,
+                "dairyFree": False,
+                "keto": False,
+                "paleo": False
+            },
+            "cart": []
+        })
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "auth/signup",
+                "status": "success",
+                "user_id": user_id,
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"message": "User created", "userId": user_id}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "auth/signup",
+                "status": "error",
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Signup failed: {str(e)}"}), 500
+
 
 @app.route("/auth/login", methods=["POST"])
+@limiter.limit("100/hour")
 def login():
-    email = request.json.get("email")
-    password = request.json.get("password")
     try:
-        
-        user = {"uid": "dummy_user"}  
-        return jsonify({"uid": user["uid"], "token": "mock_token"}), 200
+        data = request.json
+        email = data.get("email")
+        token = data.get("token")
+        if not token:
+            return jsonify({"error": "Token required"}), 401
+        decoded = auth.verify_id_token(token)
+        user = auth.get_user_by_email(email)
+        if decoded["uid"] != user.uid:
+            return jsonify({"error": "Invalid token"}), 401
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "auth/login",
+                "status": "success",
+                "user_id": user.uid,
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"uid": user.uid, "token": token}), 200
     except Exception as e:
-        return jsonify({"error": "Invalid email or password"}), 401
-    
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "auth/login",
+                "status": "error",
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": "Invalid email or token"}), 401
+
 
 
 @app.route("/profile/update", methods=["POST"])
+@firebase_auth
 def update_profile():
-    userId = request.json.get("userId")
-    name = request.json.get("name")
-    avatarUrl = request.json.get("avatarUrl", "https://default-avatar.com")
+    user_id = g.user["uid"]
+    data = request.get_json()
+    name = data.get("name")
+    avatar_url = data.get("avatarUrl")
+    dietary_prefs = data.get("dietaryPrefs", {
+        "vegan": False,
+        "glutenFree": False,
+        "nutFree": False,
+        "organic": False,
+        "nonGMO": False,
+        "lowCarb": False,
+        "highFiber": False,
+        "lowSodium": False,
+        "dairyFree": False,
+        "keto": False,
+        "paleo": False
+    })
     try:
-        db.collection("users").document(userId).update({"name": name, "avatarUrl": avatarUrl})
+        db.collection("profiles").document(user_id).update({
+            "name": name,
+            "avatarUrl": avatar_url,
+            "dietaryPrefs": dietary_prefs
+        })
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "profile/update",
+                "status": "success",
+                "user_id": user_id,
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
         return jsonify({"message": "Profile updated"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "profile/update",
+                "status": "error",
+                "user_id": user_id,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Update failed: {str(e)}"}), 500
 
-def verify_token(token):
-    try:
-        decoded = auth.verify_id_token(token)
-        return decoded["uid"]
-    except:
-        return None
 
 
 
 @app.route("/profile/<userId>", methods=["GET"])
+@firebase_auth
 def get_profile(userId):
-    start_time = time.time()
-    token = request.headers.get("Authorization")
-    uid = verify_token(token)
-    if not uid or uid != userId:
-        return jsonify({"error": "Authentication required"}), 401
+    if g.user["uid"] != userId:
+        return jsonify({"error": "Unauthorized"}), 403
     try:
-        profile = db.collection("users").document(userId).get().to_dict()
-        if not profile:
-            return jsonify({"error": "User not found"}), 404
-        db.collection("profile_logs").add({
-            "userId": userId,
-            "status": "success",
-            "timestamp": firestore.SERVER_TIMESTAMP,
-            "response_time": time.time() - start_time
-        })
-        return jsonify(profile), 200
+        doc = db.collection("profiles").document(userId).get()
+        if doc.exists:
+            return jsonify(doc.to_dict()), 200
+        return jsonify({
+            "email": g.user.get("email", ""),
+            "name": g.user.get("email", "").split("@")[0],
+            "avatarUrl": f"https://api.dicebear.com/9.x/pixel-art/svg?seed={userId}",
+            "dietaryPrefs": {
+                "vegan": False,
+                "glutenFree": False,
+                "nutFree": False,
+                "organic": False,
+                "nonGMO": False,
+                "lowCarb": False,
+                "highFiber": False,
+                "lowSodium": False,
+                "dairyFree": False,
+                "keto": False,
+                "paleo": False
+            },
+            "cart": []
+        }), 200
     except Exception as e:
-        db.collection("profile_logs").add({
-            "userId": userId,
-            "status": "error",
-            "timestamp": firestore.SERVER_TIMESTAMP,
-            "response_time": time.time() - start_time
-        })
-        return jsonify({"error": str(e)}), 500
-    
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "profile/<userId>",
+                "status": "error",
+                "user_id": userId,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Error fetching profile: {str(e)}"}), 500
+
 
 @app.route("/profile-logs", methods=["GET"])
 def get_profile_logs():
     logs = db.collection("profile_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).get()
     return jsonify([log.to_dict() for log in logs]), 200
 
+@app.route("/cart/add", methods=["POST"])
+@firebase_auth
+@limiter.limit("10 per minute")
+def add_to_cart():
+    user_id = g.user["uid"]
+    item = request.get_json().get("item")
+    if not item:
+        return jsonify({"error": "Missing item in request"}), 400
+    try:
+        doc_ref = db.collection("profiles").document(user_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            cart = doc.to_dict().get("cart", [])
+            item["price"] = float(item.get("price", 0))
+            if "id" not in item:
+                item["id"] = str(len(cart) + 1)
+            item["quantity"] = item.get("quantity", 1)
+            existing_item = next((i for i in cart if i["id"] == item["id"]), None)
+            if existing_item:
+                existing_item["quantity"] = existing_item.get("quantity", 1) + item["quantity"]
+            else:
+                cart.append(item)
+            doc_ref.update({"cart": cart})
+            if db:
+                db.collection("api_logs").add({
+                    "endpoint": "cart/add",
+                    "status": "success",
+                    "user_id": user_id,
+                    "item_id": item["id"],
+                    "timestamp": firestore.SERVER_TIMESTAMP
+                })
+            return jsonify({"message": "Item added", "itemId": item["id"]}), 200
+        return jsonify({"error": "Profile not found"}), 404
+    except Exception as e:
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "cart/add",
+                "status": "error",
+                "user_id": user_id,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Add to cart failed: {str(e)}"}), 500
+
+@app.route("/cart/get", methods=["GET"])
+@firebase_auth
+def get_cart():
+    user_id = g.user["uid"]
+    try:
+        doc = db.collection("profiles").document(user_id).get()
+        if doc.exists:
+            cart = doc.to_dict().get("cart", [])
+            if db:
+                db.collection("api_logs").add({
+                    "endpoint": "cart/get",
+                    "status": "success",
+                    "user_id": user_id,
+                    "timestamp": firestore.SERVER_TIMESTAMP
+                })
+            return jsonify({"items": cart}), 200
+        return jsonify({"items": []}), 200
+    except Exception as e:
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "cart/get",
+                "status": "error",
+                "user_id": user_id,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Get cart failed: {str(e)}"}), 500
+
+
+@app.route("/cart/remove", methods=["POST"])
+@firebase_auth
+def remove_from_cart():
+    user_id = g.user["uid"]
+    item_id = request.get_json().get("item_id")
+    if not item_id:
+        return jsonify({"error": "Missing item_id in request"}), 400
+    try:
+        doc_ref = db.collection("profiles").document(user_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            cart = doc.to_dict().get("cart", [])
+            cart = [item for item in cart if item["id"] != item_id]
+            doc_ref.update({"cart": cart})
+            if db:
+                db.collection("api_logs").add({
+                    "endpoint": "cart/remove",
+                    "status": "success",
+                    "user_id": user_id,
+                    "item_id": item_id,
+                    "timestamp": firestore.SERVER_TIMESTAMP
+                })
+            return jsonify({"message": "Item removed"}), 200
+        return jsonify({"error": "Profile not found"}), 404
+    except Exception as e:
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "cart/remove",
+                "status": "error",
+                "user_id": user_id,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Remove from cart failed: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
