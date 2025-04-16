@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import requests
@@ -9,8 +9,10 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from functools import wraps
+import random
 
 app = Flask(__name__)
+CORS(app)
 
 load_dotenv()
 
@@ -28,14 +30,6 @@ SPOONACULAR_API_KEY = os.getenv("SPOONACULAR_API_KEY")
 if not SPOONACULAR_API_KEY:
     print("Warning: SPOONACULAR_API_KEY not set in .env, using dummy data")
 
-# Dummy data for APIs (to simulate when real APIs are unavailable)
-DUMMY_GROCERY_ITEMS = [
-    {"name": "Tomato", "category": "vegetable", "tags": ["vegan", "gluten-free"]},
-    {"name": "Apple", "category": "fruit", "tags": ["vegan", "gluten-free", "nut-free"]},
-    {"name": "Bread", "category": "bakery", "tags": ["vegan"]},
-    {"name": "Chicken", "category": "meat", "tags": []},
-    {"name": "Pasta", "category": "grain", "tags": ["gluten-free"]}
-]
 
 limiter = Limiter(
     app=app,
