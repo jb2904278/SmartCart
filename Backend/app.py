@@ -979,6 +979,41 @@ def get_cart():
         return jsonify({"error": f"Get cart failed: {str(e)}"}), 500
 
 
+
+@app.route("/cart/summary", methods=["GET"])
+@firebase_auth
+def cart_summary():
+    user_id = g.user["uid"]
+    try:
+        doc = db.collection("profiles").document(user_id).get()
+        if doc.exists:
+            cart = doc.to_dict().get("cart", [])
+            total_items = sum(item.get("quantity", 1) for item in cart)
+            total_price = sum(float(item.get("price", 0)) * item.get("quantity", 1) for item in cart)
+            if db:
+                db.collection("api_logs").add({
+                    "endpoint": "cart/summary",
+                    "status": "success",
+                    "user_id": user_id,
+                    "timestamp": firestore.SERVER_TIMESTAMP
+                })
+            return jsonify({
+                "totalItems": total_items,
+                "totalPrice": round(total_price, 2),
+                "items": cart
+            }), 200
+        return jsonify({"totalItems": 0, "totalPrice": 0, "items": []}), 200
+    except Exception as e:
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "cart/summary",
+                "status": "error",
+                "user_id": user_id,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Cart summary failed: {str(e)}"}), 500
+
 @app.route("/cart/remove", methods=["POST"])
 @firebase_auth
 def remove_from_cart():
