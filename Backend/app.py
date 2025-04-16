@@ -25,10 +25,20 @@ except Exception as e:
     print(f"Firestore initialization failed: {e}")
     db = None  
 
+
+# Get API keys
+SPOONACULAR_API_KEY = os.getenv("SPOONACULAR_API_KEY")
+USDA_API_KEY = os.getenv("USDA_API_KEY")
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+
 # Get Spoonacular API key from environment
 SPOONACULAR_API_KEY = os.getenv("SPOONACULAR_API_KEY")
 if not SPOONACULAR_API_KEY:
     print("Warning: SPOONACULAR_API_KEY not set in .env, using dummy data")
+if not USDA_API_KEY:
+    print("Warning: USDA_API_KEY not set")
+if not UNSPLASH_ACCESS_KEY:
+    print("Warning: UNSPLASH_ACCESS_KEY not set")
 
 
 limiter = Limiter(
