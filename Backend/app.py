@@ -887,9 +887,24 @@ def get_profile(userId):
 
 
 @app.route("/profile-logs", methods=["GET"])
-def get_profile_logs():
-    logs = db.collection("profile_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).get()
-    return jsonify([log.to_dict() for log in logs]), 200
+@firebase_auth
+def profile_logs():
+    user_id = g.user["uid"]
+    try:
+        doc = db.collection("profiles").document(user_id).get()
+        if doc.exists:
+            return jsonify({"logs": doc.to_dict()}), 200
+        return jsonify({"logs": {}}), 200
+    except Exception as e:
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "profile-logs",
+                "status": "error",
+                "user_id": user_id,
+                "error": str(e),
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"error": f"Profile logs failed: {str(e)}"}), 500
 
 @app.route("/cart/add", methods=["POST"])
 @firebase_auth
