@@ -617,43 +617,96 @@ def get_daily_offers():
 
 
 @app.route("/meal-recommendations", methods=["POST"])
-def get_meal_recommendations():
-    start_time = time.time()
-    cart_items = request.json.get("cart_items", [])
+@firebase_auth
+@limiter.limit("10 per minute")
+def meal_recommendations():
+    data = request.get_json()
+    cart_items = data.get("cart_items", [])
+    dietary_prefs = data.get("dietary_prefs", {})
     try:
         if not cart_items:
-            meals = []
-        elif not SPOONACULAR_API_KEY:
-            # Fallback to dummy data if API key is missing
-            meals = [
-                {"meal": f"{cart_items[0]} Stew", "ingredients": cart_items},
-                {"meal": f"{cart_items[0]} Salad", "ingredients": cart_items[:2]},
-                {"meal": f"{cart_items[0]} Stir-Fry", "ingredients": cart_items}
-            ]
-        else:
-            # Real Spoonacular API call
-            ingredients = ",".join(cart_items)
-            url = f"https://api.spoonacular.com/recipes/findByIngredients?ingredients={ingredients}&number=3&apiKey={SPOONACULAR_API_KEY}"
-            response = requests.get(url)
-            response.raise_for_status()  # Raise exception for bad status codes
-            recipes = response.json()
-            meals = [
-                {
-                    "meal": recipe["title"],
-                    "ingredients": [ing["name"] for ing in recipe["usedIngredients"] + recipe["missedIngredients"]]
-                }
-                for recipe in recipes
-            ]
+            return jsonify({"meals": []}), 200
 
-        if db:
-            # Use set with merge=True to create or update the document
-            db.collection("users").document("dummy_user").set({"recommendations": meals}, merge=True)
-            db.collection("api_logs").add({"endpoint": "meal-recommendations", "status": "success", "time": time.time() - start_time})
-        return jsonify({"meals": meals[:3]}), 200
+        # Step 1: Fetch initial meal suggestions
+        query = ",".join(cart_items)
+        diet = []
+        if dietary_prefs.get("vegan"):
+            diet.append("vegan")
+        if dietary_prefs.get("glutenFree"):
+            diet.append("gluten free")
+        if dietary_prefs.get("nutFree"):
+            diet.append("peanut free")
+        if dietary_prefs.get("dairyFree"):
+            diet.append("dairy free")
+        if dietary_prefs.get("keto"):
+            diet.append("ketogenic")
+        if dietary_prefs.get("paleo"):
+            diet.append("paleo")
+        diet_str = ",".join(diet) if diet else None
+        params = {
+            "apiKey": SPOONACULAR_API_KEY,
+            "ingredients": query,
+            "number": 5  # Fetch more recipes to account for filtering
+        }
+        if diet_str:
+            params["diet"] = diet_str
+        if dietary_prefs.get("lowCarb"):
+            params["maxCarbs"] = 20
+
+        response = requests.get(
+            "https://api.spoonacular.com/recipes/findByIngredients",
+            params=params
+        )
+        response.raise_for_status()
+        recipes = response.json()
+
+        if not recipes:
+            return jsonify({"meals": []}), 200
+
+        # Step 2: Fetch dietary information for each recipe
+        meals = []
+        for recipe in recipes:
+            recipe_id = recipe["id"]
+            # Fetch detailed recipe information
+            recipe_info_response = requests.get(
+                f"https://api.spoonacular.com/recipes/{recipe_id}/information",
+                params={"apiKey": SPOONACULAR_API_KEY}
+            )
+            recipe_info_response.raise_for_status()
+            recipe_info = recipe_info_response.json()
+
+            # Extract dietary tags
+            tags = []
+            if recipe_info.get("vegan"):
+                tags.append("vegan")
+            if recipe_info.get("glutenFree"):
+                tags.append("gluten-free")
+            if recipe_info.get("dairyFree"):
+                tags.append("dairy-free")
+            # Spoonacular uses "veryHealthy" as a proxy for some dietary preferences
+            if recipe_info.get("veryHealthy"):
+                if dietary_prefs.get("lowCarb") and recipe_info.get("lowCarb", False):
+                    tags.append("low-carb")
+                if dietary_prefs.get("keto") and recipe_info.get("ketogenic", False):
+                    tags.append("keto")
+                if dietary_prefs.get("paleo") and recipe_info.get("paleo", False):
+                    tags.append("paleo")
+            # Note: Spoonacular API does not directly provide nut-free or peanut-free flags
+            # We'll assume recipes without peanuts in ingredients are nut-free for simplicity
+            ingredients = [ing["name"].lower() for ing in recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])]
+            has_nuts = any("peanut" in ing or "nut" in ing for ing in ingredients)
+            if not has_nuts:
+                tags.append("nut-free")
+
+            meals.append({
+                "meal": recipe["title"],
+                "ingredients": [ing["name"] for ing in recipe.get("usedIngredients", [])],
+                "tags": tags
+            })
+
+        return jsonify({"meals": meals}), 200
     except Exception as e:
-        if db:
-            db.collection("api_logs").add({"endpoint": "meal-recommendations", "status": "error", "time": time.time() - start_time})
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Meal recommendations failed: {str(e)}"}), 500
 
 
 @app.route("/api-logs", methods=["GET"])
