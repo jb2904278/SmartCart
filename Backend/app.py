@@ -67,6 +67,16 @@ def firebase_auth(f):
 @app.route("/test-apis", methods=["GET"])
 @limiter.limit("100/hour")
 def test_apis():
+    """Test accessibility of external APIs used in the application.
+
+    This endpoint checks if the OpenFoodFacts, USDA, and Spoonacular APIs are accessible
+    by making sample requests to each. Results are logged in Firestore if available.
+
+    Returns:
+        tuple: A JSON response and HTTP status code.
+            - On success: {"message": "All APIs are accessible"}, 200
+            - On failure: {"error": "<error message>"}, 500
+    """
     try:
         open_food_response = requests.get("https://world.openfoodfacts.org/api/v0/product/737628064502.json").json()
         usda_response = requests.get(
@@ -376,6 +386,17 @@ def get_grocery_items():
 @app.route("/daily-offers", methods=["GET"])
 @limiter.limit("100/hour")
 def get_daily_offers():
+    """Retrieve a list of daily vegetable offers from OpenFoodFacts API.
+
+    Fetches vegetable products from OpenFoodFacts, filters for diversity and English names,
+    applies random discounts, and supplements with mock data if needed. Results are cached in Firestore.
+
+    Returns:
+        tuple: A JSON response and HTTP status code.
+            - On success: {"offers": [list of offers]}, 200
+            - On failure: {"error": "<error message>"}, 500
+            - If cached: Returns cached offers if API fails, 200
+    """
     start_time = time.time()
     try:
         mock_vegetables = [
@@ -631,6 +652,22 @@ def get_daily_offers():
 @firebase_auth
 @limiter.limit("10 per minute")
 def meal_recommendations():
+    """Generate meal recommendations based on cart items and dietary preferences.
+
+    Uses the Spoonacular API to fetch recipes based on cart items and filters them
+    according to user dietary preferences. Requires authentication.
+
+    Args:
+        JSON body:
+            - cart_items (list): List of item names in the cart (e.g., ["tomato"]).
+            - dietary_prefs (dict): Dietary preferences (e.g., {"vegan": true}).
+
+    Returns:
+        tuple: A JSON response and HTTP status code.
+            - On success: {"meals": [list of meals]}, 200
+            - On failure: {"error": "<error message>"}, 500
+            - If no items: {"meals": []}, 200
+    """
     data = request.get_json()
     cart_items = data.get("cart_items", [])
     dietary_prefs = data.get("dietary_prefs", {})
@@ -723,6 +760,15 @@ def meal_recommendations():
 @app.route("/api-logs", methods=["GET"])
 @limiter.limit("100/hour")
 def get_api_logs():
+    """Retrieve recent API logs from Firestore.
+
+    Fetches the 10 most recent API logs from Firestore, ordered by time in descending order.
+
+    Returns:
+        tuple: A JSON response and HTTP status code.
+            - On success: [list of log entries], 200
+            - On failure: {"error": "Database unavailable"}, 500
+    """
     if not db:
         return jsonify({"error": "Database unavailable"}), 500
     logs = db.collection("api_logs").order_by("time", direction=firestore.Query.DESCENDING).limit(10).get()
