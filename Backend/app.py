@@ -92,6 +92,18 @@ def test_apis():
 @app.route("/grocery-items", methods=["GET"])
 @limiter.limit("100/hour")
 def get_grocery_items():
+    """Retrieve a list of grocery items (vegetables) from the USDA API.
+
+    Fetches vegetable items from the USDA API, filters them to ensure diversity
+    and English names, and supplements with mock data if needed. Results are cached
+    in Firestore if available.
+
+    Returns:
+        tuple: A JSON response and HTTP status code.
+            - On success: {"items": [list of items]}, 200
+            - On failure: {"error": "<error message>"}, 500
+            - If cached: Returns cached items if API fails, 200
+    """
     start_time = time.time()
     try:
         vegetable_types = {
@@ -614,7 +626,6 @@ def get_daily_offers():
             if cached and "offers" in cached:
                 return jsonify(cached), 200
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/meal-recommendations", methods=["POST"])
 @firebase_auth
