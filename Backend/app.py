@@ -710,7 +710,10 @@ def meal_recommendations():
 
 
 @app.route("/api-logs", methods=["GET"])
+@limiter.limit("100/hour")
 def get_api_logs():
+    if not db:
+        return jsonify({"error": "Database unavailable"}), 500
     logs = db.collection("api_logs").order_by("time", direction=firestore.Query.DESCENDING).limit(10).get()
     return jsonify([log.to_dict() for log in logs]), 200
 
