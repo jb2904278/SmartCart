@@ -65,24 +65,27 @@ def firebase_auth(f):
 
  
 @app.route("/test-apis", methods=["GET"])
+@limiter.limit("100/hour")
 def test_apis():
     try:
-        # Test Open Food Facts API
-        open_food_response = requests.get(f"https://world.openfoodfacts.org/api/v0/product/737628064502.json").json()
-        # Test Flipp API (mocked as it requires auth; using dummy data)
-        flipp_response = {"offers": [{"name": "Apple", "original": 1.00, "sale": 0.75}]}
-        # Test Spoonacular API (using free tier key, replace with your own)
-        spoonacular_response = requests.get(f"https://api.spoonacular.com/recipes/findByIngredients?ingredients=apple&apiKey={SPOONACULAR_API_KEY}").json()
-        
-        db.collection("api_tests").add({
-            "open_food": open_food_response.get("product", {}).get("product_name", "N/A"),
-            "flipp": flipp_response["offers"][0],
-            "spoonacular": spoonacular_response[0]["title"] if spoonacular_response else "N/A",
-            "timestamp": firestore.SERVER_TIMESTAMP
-        })
-        return jsonify({"status": "success", "message": "APIs tested"}), 200
+        open_food_response = requests.get("https://world.openfoodfacts.org/api/v0/product/737628064502.json").json()
+        usda_response = requests.get(
+            "https://api.nal.usda.gov/fdc/v1/foods/search",
+            params={"api_key": USDA_API_KEY, "query": "vegetables", "pageSize": 1}
+        ).json() if USDA_API_KEY else {"foods": [{"description": "Mock Vegetable"}]}
+        spoonacular_response = requests.get(
+            f"https://api.spoonacular.com/recipes/findByIngredients?ingredients=apple&apiKey={SPOONACULAR_API_KEY}"
+        ).json() if SPOONACULAR_API_KEY else [{"title": "Mock Recipe"}]
+        if db:
+            db.collection("api_tests").add({
+                "open_food": open_food_response.get("product", {}).get("product_name", "N/A"),
+                "usda": usda_response["foods"][0]["description"],
+                "spoonacular": spoonacular_response[0]["title"],
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+        return jsonify({"message": "All APIs are accessible"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
     
 
 @app.route("/grocery-items", methods=["GET"])
