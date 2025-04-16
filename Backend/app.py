@@ -362,50 +362,257 @@ def get_grocery_items():
 
 
 @app.route("/daily-offers", methods=["GET"])
+@limiter.limit("100/hour")
 def get_daily_offers():
     start_time = time.time()
     try:
-        # Simulate offers with Open Food Facts data, since Flipp API key is unavailable
-        url = "https://world.openfoodfacts.org/cgi/search.pl"
-        params = {
-            "action": "process",
-            "tagtype_0": "categories",
-            "tag_contains_0": "contains",
-            "tag_0": "snacks",  # Example category; we will change down the road
-            "json": 1,
-            "page_size": 5,  # Limit to 5 offers
-            "fields": "product_name"
+        mock_vegetables = [
+            {"name": "Fresh Potatoes", "veg_type": "root", "keywords": ["potato"]},
+            {"name": "Broccoli Florets", "veg_type": "cruciferous", "keywords": ["broccoli"]},
+            {"name": "Cilantro Bunch", "veg_type": "leafy", "keywords": ["cilantro"]},
+            {"name": "Green Peppers", "veg_type": "fruit_vegetable", "keywords": ["pepper", "green pepper"]},
+            {"name": "Carrots", "veg_type": "root", "keywords": ["carrot"]},
+            {"name": "Spinach Leaves", "veg_type": "leafy", "keywords": ["spinach"]},
+            {"name": "Zucchini", "veg_type": "squash", "keywords": ["zucchini"]},
+            {"name": "Red Onions", "veg_type": "bulb", "keywords": ["onion"]},
+            {"name": "Cauliflower Head", "veg_type": "cruciferous", "keywords": ["cauliflower"]},
+            {"name": "Asparagus Spears", "veg_type": "stem", "keywords": ["asparagus"]}
+        ]
+
+        vegetable_types = {
+            "tomato": "fruit_vegetable",
+            "carrot": "root",
+            "potato": "root",
+            "beet": "root",
+            "radish": "root",
+            "spinach": "leafy",
+            "lettuce": "leafy",
+            "kale": "leafy",
+            "cabbage": "leafy",
+            "cilantro": "leafy",
+            "broccoli": "cruciferous",
+            "cauliflower": "cruciferous",
+            "brussels sprout": "cruciferous",
+            "zucchini": "squash",
+            "cucumber": "squash",
+            "squash": "squash",
+            "eggplant": "fruit_vegetable",
+            "pepper": "fruit_vegetable",
+            "onion": "bulb",
+            "garlic": "bulb",
+            "leek": "bulb",
+            "asparagus": "stem",
+            "celery": "stem",
+            "artichoke": "other",
+            "mushroom": "other"
         }
-        headers = {"User-Agent": "GroceryElegance - Python - Version 1.0"}
-        response = requests.get(url, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
-        
-        # Parse response and create mock offers
-        data = response.json()
-        offers = []
-        for product in data.get("products", [])[:5]:
-            name = product.get("product_name", "Unknown Product")
+
+        known_english_veggies = {
+            "tomato", "carrot", "potato", "beet", "radish", "spinach", "lettuce", "kale", "cabbage",
+            "cilantro", "broccoli", "cauliflower", "brussels sprout", "zucchini", "cucumber", "squash",
+            "eggplant", "pepper", "bell pepper", "green pepper", "onion", "garlic", "leek", "asparagus",
+            "celery", "artichoke", "mushroom"
+        }
+
+        def normalize_name(name):
             if not name:
+                return ""
+            normalized = name.lower()
+            normalized = ''.join(c for c in normalized if c.isalnum() or c == ' ')
+            normalized = normalized.replace(
+                "cherry red green yellow purple organic fresh baby plum grape roma heirloom paste concentrate chopped puree passata", ""
+            ).strip()
+            normalized = normalized.replace("ies", "y").replace("s ", " ")
+            if "tomato" in normalized or "passata" in normalized or "pasta" in normalized:
+                return "tomato"
+            if "potato" in normalized:
+                return "potato"
+            if "brussels" in normalized:
+                return "brussels sprout"
+            if "cilantro" in normalized:
+                return "cilantro"
+            if "pepper" in normalized:
+                return "pepper"
+            return normalized
+
+        def is_english_name(name):
+            if not name:
+                return False
+            cleaned_name = name.replace("'", "").replace("  ", " ")
+            if not all(c.isalpha() or c.isspace() or c == '-' for c in cleaned_name):
+                return False
+            norm_name = normalize_name(name)
+            return any(veggie in norm_name for veggie in known_english_veggies)
+
+        def extract_keywords(name):
+            if not name:
+                return []
+            normalized = name.lower()
+            keywords = normalized.split()
+            keyword_mappings = {
+                "tomato": ["tomato", "tomaten", "passata", "paste", "puree", "tomatoe"],
+                "potato": ["potato", "potatoes"],
+                "brussels sprout": ["brussels", "brussel", "sprout", "sprouts"],
+                "carrot": ["carrot", "carrots", "carrote", "carottes"],
+                "beet": ["beet", "beets", "beetroot"],
+                "spinach": ["spinach", "spinache"],
+                "lettuce": ["lettuce"],
+                "kale": ["kale"],
+                "cabbage": ["cabbage"],
+                "cilantro": ["cilantro", "coriander"],
+                "broccoli": ["broccoli"],
+                "cauliflower": ["cauliflower"],
+                "zucchini": ["zucchini", "courgette", "courgettes"],
+                "cucumber": ["cucumber", "cucumbers"],
+                "squash": ["squash", "squashes"],
+                "eggplant": ["eggplant", "aubergine", "aubergines"],
+                "pepper": ["pepper", "peppers", "bell pepper", "green pepper"],
+                "onion": ["onion", "onions"],
+                "garlic": ["garlic"],
+                "leek": ["leek", "leeks"],
+                "asparagus": ["asparagus"],
+                "celery": ["celery"],
+                "artichoke": ["artichoke", "artichokes"],
+                "mushroom": ["mushroom", "mushrooms"]
+            }
+            matched_keywords = []
+            for main_key, variants in keyword_mappings.items():
+                if any(variant in keywords for variant in variants):
+                    matched_keywords.append(main_key)
+            return matched_keywords
+
+        def get_veg_type(norm_name):
+            for key, vtype in vegetable_types.items():
+                if key in norm_name:
+                    return vtype
+            return "other"
+
+        seen_names = set()
+        seen_types = set()
+        seen_keywords = set()
+        offers = []
+        filtered_out = []
+
+        try:
+            url = "https://world.openfoodfacts.org/api/v2/search"
+            params = {
+                "categories_tags_en": "vegetables",
+                "fields": "product_name_en,product_name",
+                "lang": "en",
+                "page_size": 600,
+                "json": "true"
+            }
+            headers = {"User-Agent": "SmartCart - Python - Version 1.0"}
+            response = requests.get(url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            data = {"products": []}
+            filtered_out.append({"name": "N/A", "reason": f"API fetch failed: {str(e)}"})
+
+        all_products = []
+        products = data.get("products", [])
+        random.shuffle(products)
+        for product in products:
+            name = product.get("product_name_en") or product.get("product_name")
+            if not name:
+                filtered_out.append({"name": "None", "reason": "No name"})
                 continue
-            offers.append({
+            if not is_english_name(name):
+                filtered_out.append({"name": name, "reason": "Non-English name"})
+                continue
+            norm_name = normalize_name(name)
+            veg_type = get_veg_type(norm_name)
+            keywords = extract_keywords(name)
+            all_products.append({
                 "name": name,
-                "original": 1.00,  # Dummy original price (Need to chage in future)
-                "sale": 0.75     # Dummy sale price (25% off)
+                "norm_name": norm_name,
+                "veg_type": veg_type,
+                "keywords": keywords
             })
-        
+
+        type_to_product = {}
+        for product in all_products:
+            veg_type = product["veg_type"]
+            if veg_type not in type_to_product:
+                type_to_product[veg_type] = []
+            type_to_product[veg_type].append(product)
+
+        for veg_type, products in type_to_product.items():
+            for product in products:
+                name = product["name"]
+                norm_name = product["norm_name"]
+                keywords = product["keywords"]
+                has_overlap = any(keyword in seen_keywords for keyword in keywords)
+                if has_overlap:
+                    filtered_out.append({"name": name, "reason": "Overlapping keyword"})
+                    continue
+                if norm_name in seen_names:
+                    filtered_out.append({"name": name, "reason": "Duplicate name"})
+                    continue
+                seen_names.add(norm_name)
+                seen_types.add(veg_type)
+                seen_keywords.update(keywords)
+                offers.append({
+                    "name": name,
+                    "original": round(random.uniform(2, 5), 2),
+                    "sale": round(random.uniform(1, 3), 2),
+                    "tags": ["vegan", "gluten-free", "nut-free"]
+                })
+                break
+
+        remaining_slots = 10 - len(offers)
+        if remaining_slots > 0:
+            random.shuffle(mock_vegetables)
+            for mock in mock_vegetables:
+                if len(offers) >= 10:
+                    break
+                name = mock["name"]
+                norm_name = normalize_name(name)
+                veg_type = mock["veg_type"]
+                keywords = mock["keywords"]
+                has_overlap = any(keyword in seen_keywords for keyword in keywords)
+                if has_overlap:
+                    filtered_out.append({"name": name, "reason": "Overlapping keyword (mock)"})
+                    continue
+                if norm_name in seen_names:
+                    filtered_out.append({"name": name, "reason": "Duplicate name (mock)"})
+                    continue
+                seen_names.add(norm_name)
+                seen_types.add(veg_type)
+                seen_keywords.update(keywords)
+                offers.append({
+                    "name": name,
+                    "original": round(random.uniform(2, 5), 2),
+                    "sale": round(random.uniform(1, 3), 2),
+                    "tags": ["vegan", "gluten-free", "nut-free"]
+                })
+
+        random.shuffle(offers)
+
         if not offers:
-            raise Exception("No valid offer items found in API response")
-        
-        # Log success and cache in Firebase
-        db.collection("offers_cache").document("latest").set({"offers": offers, "timestamp": firestore.SERVER_TIMESTAMP})
-        db.collection("api_logs").add({"endpoint": "daily-offers", "status": "success", "time": time.time() - start_time})
+            raise Exception("No valid vegetable offers found")
+
+        if db:
+            db.collection("offers_cache").document("latest").set({"offers": offers, "timestamp": firestore.SERVER_TIMESTAMP})
+            db.collection("api_logs").add({
+                "endpoint": "daily-offers",
+                "status": "success",
+                "time": time.time() - start_time,
+                "filtered_out": filtered_out[:20]
+            })
         return jsonify({"offers": offers}), 200
     except Exception as e:
-        db.collection("api_logs").add({"endpoint": "daily-offers", "status": "error", "time": time.time() - start_time, "error": str(e)})
-        # Fallback to cached data
-        cached = db.collection("offers_cache").document("latest").get().to_dict()
-        if cached and "offers" in cached:
-            return jsonify(cached), 200
+        if db:
+            db.collection("api_logs").add({
+                "endpoint": "daily-offers",
+                "status": "error",
+                "time": time.time() - start_time,
+                "error": str(e)
+            })
+            cached = db.collection("offers_cache").document("latest").get().to_dict()
+            if cached and "offers" in cached:
+                return jsonify(cached), 200
         return jsonify({"error": str(e)}), 500
 
 
